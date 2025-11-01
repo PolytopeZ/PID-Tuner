@@ -13,53 +13,75 @@ class SimulatorApp:
         self.init_widgets()
 
     def init_widgets(self):
-        frame = ttk.Frame(self.root, padding=10)
-        frame.grid(row=0, column=0, sticky="nsew")
+        # ==== Input settings ====
+        frame_input = ttk.Frame(self.root, padding=10)
+        frame_input.grid(row=0, column=0, sticky="nsew")
 
-        # System parameters
+        ttk.Label(frame_input, text=Label.INPUT).grid(
+            row=0, column=0, sticky="e")
+        self.input_type = ttk.Combobox(
+            frame_input, values=[Label.STEP, Label.RAMP], width=10, state="readonly")
+        self.input_type.current(0)
+        self.input_type.grid(row=0, column=1)
+        self.input_type.bind("<<ComboboxSelected>>", self.update_input_fields)
+
+        self.inputs_params_frame = ttk.Frame(frame_input)
+        self.inputs_params_frame.grid(row=1, column=0, columnspan=2, pady=5)
+        self.create_input_fields()
+
+        # ==== System settings ====
         # First order => G(s) = K / (Ts + 1)
-        ttk.Label(frame, text=Label.K).grid(row=0, column=0, sticky="e")
-        self.value_K = ttk.Entry(frame, width=8)
+        frame_system = ttk.Frame(self.root, padding=10)
+        frame_system.grid(row=0, column=1, sticky="nsew")
+
+        ttk.Label(frame_system, text=Label.K).grid(
+            row=0, column=0, sticky="e")
+        self.value_K = ttk.Entry(frame_system, width=8)
         self.value_K.insert(0, Value.K_DEFAULT)
         self.value_K.grid(row=0, column=1)
 
-        ttk.Label(frame, text=Label.TAU).grid(row=1, column=0, sticky="e")
-        self.value_tau = ttk.Entry(frame, width=8)
+        ttk.Label(frame_system, text=Label.TAU).grid(
+            row=1, column=0, sticky="e")
+        self.value_tau = ttk.Entry(frame_system, width=8)
         self.value_tau.insert(0, Value.TAU_DEFAULT)
         self.value_tau.grid(row=1, column=1)
 
-        ttk.Label(frame, text=Label.T_SIM).grid(row=2, column=0, sticky="e")
-        self.value_t_sim = ttk.Entry(frame, width=8)
+        ttk.Label(frame_system, text=Label.T_SIM).grid(
+            row=2, column=0, sticky="e")
+        self.value_t_sim = ttk.Entry(frame_system, width=8)
         self.value_t_sim.insert(0, Value.T_SIM_DEFAULT)
         self.value_t_sim.grid(row=2, column=1)
 
-        ttk.Label(frame, text=Label.DT).grid(row=3, column=0, sticky="e")
-        self.value_dt = ttk.Entry(frame, width=8)
+        ttk.Label(frame_system, text=Label.DT).grid(
+            row=3, column=0, sticky="e")
+        self.value_dt = ttk.Entry(frame_system, width=8)
         self.value_dt.insert(0, Value.DT_DEFAULT)
         self.value_dt.grid(row=3, column=1)
 
-        # Inputs
-        ttk.Label(frame, text=Label.INPUT).grid(row=4, column=0, sticky="e")
-        self.input_type = ttk.Combobox(
-            frame, values=[Label.STEP, Label.RAMP], width=10, state="readonly")
-        self.input_type.current(0)
-        self.input_type.grid(row=4, column=1)
-        self.input_type.bind("<<ComboboxSelected>>", self.update_input_fields)
+        # ==== Controller settings ====
+        frame_controller = ttk.Frame(self.root, padding=10)
+        frame_controller.grid(row=0, column=2, sticky="nsew")
 
-        self.inputs_params_frame = ttk.Frame(frame)
-        self.inputs_params_frame.grid(row=5, column=0, columnspan=2, pady=5)
-        self.create_input_fields()
+        ttk.Label(frame_controller, text=Label.P).grid(
+            row=0, column=0, sticky="e")
+        self.value_kp = ttk.Entry(frame_controller, width=8)
+        self.value_kp.insert(0, Value.P_DEFAULT)
+        self.value_kp.grid(row=0, column=1)
 
-        # Button
-        btn_run = ttk.Button(frame, text=Label.SIMULATE,
+        # ==== Graph visu ====
+        frame_graph = ttk.Frame(self.root, padding=10)
+        frame_graph.grid(row=0, column=3, sticky="nsew")
+
+        self.fig, self.ax = plt.subplots(figsize=(6, 4))
+        self.canvas = FigureCanvasTkAgg(self.fig, master=frame_graph)
+        self.canvas.get_tk_widget().grid(row=0, column=0, columnspan=4, pady=10)
+
+        # ==== Button ====
+        btn_run = ttk.Button(self.root, text=Label.SIMULATE,
                              command=self.run_sim)
-        btn_run.grid(row=6, column=0, columnspan=2, pady=5)
+        btn_run.grid(row=1, column=0, columnspan=3, pady=7)
 
-        # Graph
-        self.fig, self.ax = plt.subplots(figsize=(5, 3))
-        self.canvas = FigureCanvasTkAgg(self.fig, master=frame)
-        self.canvas.get_tk_widget().grid(row=0, column=2, rowspan=7, padx=10, pady=5)
-
+    # Dynamics fields depending on which input is selected
     def create_input_fields(self):
         for widget in self.inputs_params_frame.winfo_children():
             widget.destroy()
@@ -81,6 +103,7 @@ class SimulatorApp:
     def update_input_fields(self, event=None):
         self.create_input_fields()
 
+    # Generate input depending on if it's a step, ramp ..
     def generate_input(self, t):
         if self.input_type.get() == Label.STEP:
             amp = float(self.value_amp.get())
@@ -89,25 +112,30 @@ class SimulatorApp:
             slope = float(self.value_slope.get())
             return slope * t
 
-    def simulate_first_order(self, K, tau, t, u):
+    # Compute 1st order function
+    def simulate_first_order(self, K, tau, t, u, kp):
         y = np.zeros_like(t)
         dt = t[1] - t[0]
 
         for i in range(1, len(t)):
-            dy = (-y[i-1] + K * u[i]) / tau * dt
+            e = u[i] - y[i-1]
+            u_c = kp * e
+            dy = (-y[i-1] + K * u_c) / tau * dt
             y[i] = y[i-1] + dy
 
         return y
 
+    # Get settings, generate everything and plot
     def run_sim(self):
         K = float(self.value_K.get())
         tau = float(self.value_tau.get())
         t_sim = float(self.value_t_sim.get())
         dt = float(self.value_dt.get())
+        kp = float(self.value_kp.get())
 
         t = np.arange(0, t_sim + dt, dt)
         u = self.generate_input(t)
-        y = self.simulate_first_order(K, tau, t, u)
+        y = self.simulate_first_order(K, tau, t, u, kp)
 
         self.ax.clear()
         self.ax.plot(t, u, label=Label.INPUT_PLOT)
