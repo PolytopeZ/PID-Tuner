@@ -17,6 +17,11 @@ class Label():
     I = "I"
     D = "D"
     PI = "PI"
+    PD = "PD"
+    PID = "PID"
+    KP = "Kp"
+    KI = "Ki"
+    KD = "Kd"
     NONE = "None"
     CONTROLLER = "Controller"
 
@@ -28,4 +33,4 @@ class Value():
     DT_DEFAULT = "0.01"
     P_DEFAULT = "1.0"
     I_DEFAULT = "0.5"
-    D_DEFAULT = "1.0"
+    D_DEFAULT = "0.1"

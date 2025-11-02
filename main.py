@@ -75,7 +75,10 @@ class SimulatorApp:
         ttk.Label(frame_controller, text=Label.CONTROLLER).grid(
             row=0, column=0, sticky="e")
         self.controller_type = ttk.Combobox(
-            frame_controller, values=[Label.NONE, Label.P, Label.I, Label.PI], width=10, state="readonly"
+            frame_controller,
+            values=[Label.NONE, Label.P, Label.PI, Label.PID],
+            width=10,
+            state="readonly"
         )
         self.controller_type.current(0)
         self.controller_type.grid(row=0, column=1)
@@ -84,7 +87,7 @@ class SimulatorApp:
 
         self.controller_params_frame = ttk.Frame(frame_controller)
         self.controller_params_frame.grid(
-            row=1, column=2, columnspan=2, pady=5)
+            row=1, column=0, columnspan=2, pady=5)
         self.create_controller_fields()
 
     def init_graph_frame(self):
@@ -129,20 +132,30 @@ class SimulatorApp:
             widget.destroy()
 
         c = self.controller_type.get()
+        row = 0
 
-        if c in [Label.P, Label.PI]:
-            ttk.Label(self.controller_params_frame, text=Label.P).grid(
-                row=0, column=0, sticky="e")
+        if c in [Label.P, Label.PI, Label.PID]:
+            ttk.Label(self.controller_params_frame, text=Label.KP).grid(
+                row=row, column=0, sticky="e")
             self.value_kp = ttk.Entry(self.controller_params_frame, width=8)
             self.value_kp.insert(0, Value.P_DEFAULT)
-            self.value_kp.grid(row=0, column=1)
+            self.value_kp.grid(row=row, column=1)
+            row += 1
 
-        if c in [Label.I, Label.PI]:
-            ttk.Label(self.controller_params_frame, text=Label.I).grid(
-                row=1, column=0, sticky="e")
+        if c in [Label.PI, Label.PID]:
+            ttk.Label(self.controller_params_frame, text=Label.KI).grid(
+                row=row, column=0, sticky="e")
             self.value_ki = ttk.Entry(self.controller_params_frame, width=8)
             self.value_ki.insert(0, Value.I_DEFAULT)
-            self.value_ki.grid(row=1, column=1)
+            self.value_ki.grid(row=row, column=1)
+            row += 1
+
+        if c == Label.PID:
+            ttk.Label(self.controller_params_frame, text=Label.KD).grid(
+                row=row, column=0, sticky="e")
+            self.value_kd = ttk.Entry(self.controller_params_frame, width=8)
+            self.value_kd.insert(0, Value.D_DEFAULT)
+            self.value_kd.grid(row=row, column=1)
 
     def update_controller_fields(self, event=None):
         self.create_controller_fields()
@@ -157,26 +170,32 @@ class SimulatorApp:
             return slope * t
 
     # Compute 1st order function
-    def simulate_first_order(self, K, tau, t, u, controller, kp=0, ki=0):
+    def simulate_first_order(self, K, tau, t, u, controller, kp=0, ki=0, kd=0):
         y = np.zeros_like(t)
         integral = 0.0
         dt = t[1] - t[0]
+        e_prev = 0.0
 
         for i in range(1, len(t)):
             e = u[i] - y[i-1]
+
+            u_c = 0.0
             if controller == Label.NONE:
                 u_c = u[i]
-            elif controller == Label.P:
-                u_c = kp * e
-            elif controller == Label.I:
-                integral += e*dt
-                u_c = ki * integral
-            elif controller == Label.PI:
-                integral += e*dt
-                u_c = kp*e + ki*integral
+            else:
+                if controller in ["P", "PI", "PID"]:
+                    u_c += kp * e
+                if controller in ["PI", "PID"]:
+                    integral += e * dt
+                    u_c += ki * integral
+                if controller == "PID":
+                    deriv = (e - e_prev) / dt
+                    u_c += kd * deriv
 
-            dy = (-y[i-1] + K*u_c)/tau * dt
+            dy = (-y[i-1] + K * u_c) / tau * dt
             y[i] = y[i-1] + dy
+            e_prev = e
+
         return y
 
     # Get settings, generate everything and plot
@@ -188,13 +207,15 @@ class SimulatorApp:
 
         controller = self.controller_type.get()
         kp = float(self.value_kp.get()) if controller in [
-            Label.P, Label.PI] else 0
+            Label.P, Label.PI, Label.PID] else 0
         ki = float(self.value_ki.get()) if controller in [
-            Label.I, Label.PI] else 0
+            Label.PI, Label.PID] else 0
+        kd = float(self.value_kd.get()) if controller in [
+            Label.PID] else 0
 
         t = np.arange(0, t_sim + dt, dt)
         u = self.generate_input(t)
-        y = self.simulate_first_order(K, tau, t, u, controller, kp, ki)
+        y = self.simulate_first_order(K, tau, t, u, controller, kp, ki, kd)
 
         self.ax.clear()
         self.ax.plot(t, u, label=Label.INPUT_PLOT)
