@@ -17,11 +17,7 @@ class SimulatorApp:
         self.init_system_frame()
         self.init_controller_frame()
         self.init_graph_frame()
-
-        # ==== Button ====
-        btn_run = ttk.Button(self.root, text=Label.SIMULATE,
-                             command=self.run_sim)
-        btn_run.grid(row=1, column=0, columnspan=3, pady=7)
+        self.init_button()
 
     def init_input_frame(self):
         # ==== Input settings ====
@@ -89,6 +85,12 @@ class SimulatorApp:
         self.fig, self.ax = plt.subplots(figsize=(6, 4))
         self.canvas = FigureCanvasTkAgg(self.fig, master=frame_graph)
         self.canvas.get_tk_widget().grid(row=0, column=0, columnspan=4, pady=10)
+
+    def init_button(self):
+        # ==== Button ====
+        btn_run = ttk.Button(self.root, text=Label.SIMULATE,
+                             command=self.run_sim)
+        btn_run.grid(row=1, column=0, columnspan=3, pady=7)
 
     def create_input_fields(self):
         # Dynamics fields depending on which input is selected
