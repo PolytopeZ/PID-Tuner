@@ -13,6 +13,17 @@ class SimulatorApp:
         self.init_widgets()
 
     def init_widgets(self):
+        self.init_input_frame()
+        self.init_system_frame()
+        self.init_controller_frame()
+        self.init_graph_frame()
+
+        # ==== Button ====
+        btn_run = ttk.Button(self.root, text=Label.SIMULATE,
+                             command=self.run_sim)
+        btn_run.grid(row=1, column=0, columnspan=3, pady=7)
+
+    def init_input_frame(self):
         # ==== Input settings ====
         frame_input = ttk.Frame(self.root, padding=10)
         frame_input.grid(row=0, column=0, sticky="nsew")
@@ -29,6 +40,7 @@ class SimulatorApp:
         self.inputs_params_frame.grid(row=1, column=0, columnspan=2, pady=5)
         self.create_input_fields()
 
+    def init_system_frame(self):
         # ==== System settings ====
         # First order => G(s) = K / (Ts + 1)
         frame_system = ttk.Frame(self.root, padding=10)
@@ -58,6 +70,7 @@ class SimulatorApp:
         self.value_dt.insert(0, Value.DT_DEFAULT)
         self.value_dt.grid(row=3, column=1)
 
+    def init_controller_frame(self):
         # ==== Controller settings ====
         frame_controller = ttk.Frame(self.root, padding=10)
         frame_controller.grid(row=0, column=2, sticky="nsew")
@@ -68,6 +81,7 @@ class SimulatorApp:
         self.value_kp.insert(0, Value.P_DEFAULT)
         self.value_kp.grid(row=0, column=1)
 
+    def init_graph_frame(self):
         # ==== Graph visu ====
         frame_graph = ttk.Frame(self.root, padding=10)
         frame_graph.grid(row=0, column=3, sticky="nsew")
@@ -76,13 +90,8 @@ class SimulatorApp:
         self.canvas = FigureCanvasTkAgg(self.fig, master=frame_graph)
         self.canvas.get_tk_widget().grid(row=0, column=0, columnspan=4, pady=10)
 
-        # ==== Button ====
-        btn_run = ttk.Button(self.root, text=Label.SIMULATE,
-                             command=self.run_sim)
-        btn_run.grid(row=1, column=0, columnspan=3, pady=7)
-
-    # Dynamics fields depending on which input is selected
     def create_input_fields(self):
+        # Dynamics fields depending on which input is selected
         for widget in self.inputs_params_frame.winfo_children():
             widget.destroy()
 
