@@ -13,9 +13,12 @@ class Label():
     INPUT_PLOT = "Input u(t)"
     OUTPUT_PLOT = "Output y(t)"
     X_AXIS = "Time (s)"
-    P = "P:"
-    I = "I:"
-    D = "D:"
+    P = "P"
+    I = "I"
+    D = "D"
+    PI = "PI"
+    NONE = "None"
+    CONTROLLER = "Controller"
 
 
 class Value():
@@ -24,5 +27,5 @@ class Value():
     T_SIM_DEFAULT = "5.0"
     DT_DEFAULT = "0.01"
     P_DEFAULT = "1.0"
-    I_DEFAULT = "1.0"
+    I_DEFAULT = "0.5"
     D_DEFAULT = "1.0"

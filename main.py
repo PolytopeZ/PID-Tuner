@@ -71,11 +71,21 @@ class SimulatorApp:
         frame_controller = ttk.Frame(self.root, padding=10)
         frame_controller.grid(row=0, column=2, sticky="nsew")
 
-        ttk.Label(frame_controller, text=Label.P).grid(
+        # Controller selection
+        ttk.Label(frame_controller, text=Label.CONTROLLER).grid(
             row=0, column=0, sticky="e")
-        self.value_kp = ttk.Entry(frame_controller, width=8)
-        self.value_kp.insert(0, Value.P_DEFAULT)
-        self.value_kp.grid(row=0, column=1)
+        self.controller_type = ttk.Combobox(
+            frame_controller, values=[Label.NONE, Label.P, Label.I, Label.PI], width=10, state="readonly"
+        )
+        self.controller_type.current(0)
+        self.controller_type.grid(row=0, column=1)
+        self.controller_type.bind(
+            "<<ComboboxSelected>>", self.update_controller_fields)
+
+        self.controller_params_frame = ttk.Frame(frame_controller)
+        self.controller_params_frame.grid(
+            row=1, column=2, columnspan=2, pady=5)
+        self.create_controller_fields()
 
     def init_graph_frame(self):
         # ==== Graph visu ====
@@ -114,6 +124,29 @@ class SimulatorApp:
     def update_input_fields(self, event=None):
         self.create_input_fields()
 
+    def create_controller_fields(self):
+        for widget in self.controller_params_frame.winfo_children():
+            widget.destroy()
+
+        c = self.controller_type.get()
+
+        if c in [Label.P, Label.PI]:
+            ttk.Label(self.controller_params_frame, text=Label.P).grid(
+                row=0, column=0, sticky="e")
+            self.value_kp = ttk.Entry(self.controller_params_frame, width=8)
+            self.value_kp.insert(0, Value.P_DEFAULT)
+            self.value_kp.grid(row=0, column=1)
+
+        if c in [Label.I, Label.PI]:
+            ttk.Label(self.controller_params_frame, text=Label.I).grid(
+                row=1, column=0, sticky="e")
+            self.value_ki = ttk.Entry(self.controller_params_frame, width=8)
+            self.value_ki.insert(0, Value.I_DEFAULT)
+            self.value_ki.grid(row=1, column=1)
+
+    def update_controller_fields(self, event=None):
+        self.create_controller_fields()
+
     # Generate input depending on if it's a step, ramp ..
     def generate_input(self, t):
         if self.input_type.get() == Label.STEP:
@@ -124,16 +157,26 @@ class SimulatorApp:
             return slope * t
 
     # Compute 1st order function
-    def simulate_first_order(self, K, tau, t, u, kp):
+    def simulate_first_order(self, K, tau, t, u, controller, kp=0, ki=0):
         y = np.zeros_like(t)
+        integral = 0.0
         dt = t[1] - t[0]
 
         for i in range(1, len(t)):
             e = u[i] - y[i-1]
-            u_c = kp * e
-            dy = (-y[i-1] + K * u_c) / tau * dt
-            y[i] = y[i-1] + dy
+            if controller == Label.NONE:
+                u_c = u[i]
+            elif controller == Label.P:
+                u_c = kp * e
+            elif controller == Label.I:
+                integral += e*dt
+                u_c = ki * integral
+            elif controller == Label.PI:
+                integral += e*dt
+                u_c = kp*e + ki*integral
 
+            dy = (-y[i-1] + K*u_c)/tau * dt
+            y[i] = y[i-1] + dy
         return y
 
     # Get settings, generate everything and plot
@@ -142,11 +185,16 @@ class SimulatorApp:
         tau = float(self.value_tau.get())
         t_sim = float(self.value_t_sim.get())
         dt = float(self.value_dt.get())
-        kp = float(self.value_kp.get())
+
+        controller = self.controller_type.get()
+        kp = float(self.value_kp.get()) if controller in [
+            Label.P, Label.PI] else 0
+        ki = float(self.value_ki.get()) if controller in [
+            Label.I, Label.PI] else 0
 
         t = np.arange(0, t_sim + dt, dt)
         u = self.generate_input(t)
-        y = self.simulate_first_order(K, tau, t, u, kp)
+        y = self.simulate_first_order(K, tau, t, u, controller, kp, ki)
 
         self.ax.clear()
         self.ax.plot(t, u, label=Label.INPUT_PLOT)
